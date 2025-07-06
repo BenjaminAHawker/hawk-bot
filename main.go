@@ -18,7 +18,7 @@ func main() {
 	pgPool := db.Connect(cfg)
 	defer pgPool.Close()
 
-	dg, err := bot.NewSession(cfg.DiscordToken)
+	dg, err := bot.NewSession(cfg.DiscordToken, pgPool)
 	if err != nil {
 		log.Fatalf("Failed to create Discord session: %v", err)
 	}
