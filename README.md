@@ -9,4 +9,3 @@ Hawk Bot is a personal Discord bot designed to help manage and interact with ser
 - 🛠️ Slash command support for all major features
 - 🔐 Private use only — not intended for public servers
 - 🐳 Dockerized for easy deployment
-# BenjaminAHawker

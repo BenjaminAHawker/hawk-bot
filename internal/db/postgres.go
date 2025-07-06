@@ -9,26 +9,36 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func Connect(cfg *config.Config) *pgxpool.Pool {
-	connStr := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		cfg.DBUser,
-		cfg.DBPassword,
-		cfg.DBHost,
-		cfg.DBPort,
-		cfg.DBName,
+// Postgres is the concrete implementation of the DB interface
+type Postgres struct {
+	pool *pgxpool.Pool
+}
+
+// Connect initializes and returns a DB (implemented by Postgres)
+func Connect(cfg *config.Config) DB {
+	connString := fmt.Sprintf(
+		"user=%s password=%s host=%s port=%s dbname=%s sslmode=disable",
+		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName,
 	)
 
-	pool, err := pgxpool.New(context.Background(), connStr)
+	pool, err := pgxpool.New(context.Background(), connString)
 	if err != nil {
-		log.Fatalf("Failed to create DB pool: %v", err)
+		log.Fatalf("Unable to create connection pool: %v", err)
 	}
 
-	err = pool.Ping(context.Background())
-	if err != nil {
-		log.Fatalf("Failed to ping DB: %v", err)
+	if err := pool.Ping(context.Background()); err != nil {
+		log.Fatalf("Failed to ping database: %v", err)
 	}
 
-	log.Println("Connected to PostgreSQL")
-	return pool
+	return &Postgres{pool: pool}
+}
+
+// Ping implements the DB interface
+func (p *Postgres) Ping(ctx context.Context) error {
+	return p.pool.Ping(ctx)
+}
+
+// Close implements the DB interface
+func (p *Postgres) Close() {
+	p.pool.Close()
 }
