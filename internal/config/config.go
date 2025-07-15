@@ -8,12 +8,13 @@ import (
 )
 
 type Config struct {
-	DiscordToken string
-	DBHost       string
-	DBPort       string
-	DBUser       string
-	DBPassword   string
-	DBName       string
+	DiscordToken   string
+	DBHost         string
+	DBPort         string
+	DBUser         string
+	DBPassword     string
+	DBName         string
+	RequestChannel string
 }
 
 // Load reads environment variables from .env and returns a Config struct
@@ -23,12 +24,13 @@ func Load() *Config {
 	}
 
 	return &Config{
-		DiscordToken: getEnv("DISCORD_TOKEN"),
-		DBHost:       getEnv("DB_HOST"),
-		DBPort:       getEnv("DB_PORT"),
-		DBUser:       getEnv("DB_USER"),
-		DBPassword:   getEnv("DB_PASSWORD"),
-		DBName:       getEnv("DB_NAME"),
+		DiscordToken:   getEnv("DISCORD_TOKEN"),
+		DBHost:         getEnv("DB_HOST"),
+		DBPort:         getEnv("DB_PORT"),
+		DBUser:         getEnv("DB_USER"),
+		DBPassword:     getEnv("DB_PASSWORD"),
+		DBName:         getEnv("DB_NAME"),
+		RequestChannel: getEnv("REQUEST_CHANNEL"),
 	}
 }
 
