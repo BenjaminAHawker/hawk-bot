@@ -9,12 +9,13 @@ import (
 
 func TestLoadConfig(t *testing.T) {
 	env := map[string]string{
-		"DISCORD_TOKEN": "test-token",
-		"DB_HOST":       "localhost",
-		"DB_PORT":       "5432",
-		"DB_USER":       "user",
-		"DB_PASSWORD":   "pass",
-		"DB_NAME":       "testdb",
+		"DISCORD_TOKEN":   "test-token",
+		"DB_HOST":         "localhost",
+		"DB_PORT":         "5432",
+		"DB_USER":         "user",
+		"DB_PASSWORD":     "pass",
+		"DB_NAME":         "testdb",
+		"REQUEST_CHANNEL": "requests",
 	}
 
 	testutil.SetEnvVars(env)

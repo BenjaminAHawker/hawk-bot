@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS request_types (
+	id SERIAL PRIMARY KEY,
+	description VARCHAR NOT NULL UNIQUE
+);
