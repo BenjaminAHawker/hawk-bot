@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"os/signal"
@@ -17,6 +18,11 @@ func main() {
 
 	pgPool := db.Connect(cfg)
 	defer pgPool.Close()
+
+	// Run migrations on startup
+	if err := pgPool.Migrate(context.Background()); err != nil {
+		log.Fatalf("Failed to run database migrations: %v", err)
+	}
 
 	dg, err := bot.NewSession(cfg.DiscordToken, pgPool)
 	if err != nil {

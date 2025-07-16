@@ -24,8 +24,9 @@
     # Add TLS certs for HTTPS
     RUN apk add --no-cache ca-certificates
     
-    # Copy the built binary and env file
+    # Copy the built binary and required files
     COPY --from=builder /app/bot .
-    COPY .env .
+    COPY --from=builder /app/.env .env
+    COPY --from=builder /app/internal/db/migrations ./internal/db/migrations
     
     CMD ["./bot"]

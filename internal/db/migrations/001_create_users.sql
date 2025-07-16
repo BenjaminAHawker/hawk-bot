@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS users (
+	id SERIAL PRIMARY KEY,
+	discord_id VARCHAR UNIQUE NOT NULL,
+	avatar VARCHAR,
+	username VARCHAR
+);

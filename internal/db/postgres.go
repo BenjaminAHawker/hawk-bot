@@ -4,6 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/BenjaminAHawker/hawk-bot/internal/config"
 	"github.com/bwmarrin/discordgo"
@@ -45,66 +49,71 @@ func (p *Postgres) Close() {
 }
 
 // Migrate applies the necessary migrations to the database
+
 func (p *Postgres) Migrate(ctx context.Context) error {
-	schemaSQL := []string{
-		`CREATE TABLE IF NOT EXISTS users (
-			id SERIAL PRIMARY KEY,
-			discord_id VARCHAR UNIQUE NOT NULL,
-			avatar VARCHAR,
-			username VARCHAR
-		);`,
-		`CREATE TABLE IF NOT EXISTS request_types (
-			id SERIAL PRIMARY KEY,
-			description VARCHAR NOT NULL UNIQUE
-		);`,
-		`CREATE TABLE IF NOT EXISTS request_status_types (
-			id INTEGER PRIMARY KEY,
-			description VARCHAR NOT NULL
-		);`,
-		`CREATE TABLE IF NOT EXISTS requests (
-			id SERIAL PRIMARY KEY,
-			request_type_id INTEGER NOT NULL REFERENCES request_types(id),
-			user_requested INTEGER NOT NULL REFERENCES users(id),
-			status_id INTEGER NOT NULL DEFAULT 0 REFERENCES request_status_types(id),
-			processed_by INTEGER REFERENCES users(id)
-		);`,
-		`CREATE INDEX IF NOT EXISTS idx_requests_user_requested ON requests(user_requested);`,
+	migrationsDir := filepath.Join("internal", "db", "migrations")
+
+	// Ensure schema_migrations table exists
+	_, err := p.pool.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS schema_migrations (
+			filename TEXT PRIMARY KEY,
+			applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);`)
+	if err != nil {
+		return fmt.Errorf("failed to ensure schema_migrations table: %w", err)
 	}
 
-	for _, stmt := range schemaSQL {
-		if _, err := p.pool.Exec(ctx, stmt); err != nil {
-			return fmt.Errorf("migration failed: %w", err)
+	// Read migration directory
+	entries, err := os.ReadDir(migrationsDir)
+	if err != nil {
+		return fmt.Errorf("failed to read migrations dir: %w", err)
+	}
+
+	// Sort filenames alphabetically
+	var files []string
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".sql") {
+			files = append(files, entry.Name())
 		}
 	}
+	sort.Strings(files)
 
-	// Seed request types
-	requestTypes := []string{"audiobook", "tv", "movie", "anime", "comic", "manga", "game", "music", "ebook"}
-	for _, desc := range requestTypes {
-		_, err := p.pool.Exec(ctx,
-			`INSERT INTO request_types (description) VALUES ($1) ON CONFLICT (description) DO NOTHING;`,
-			desc)
+	// Apply each migration if not yet applied
+	for _, file := range files {
+		applied, err := p.migrationApplied(ctx, file)
 		if err != nil {
-			return fmt.Errorf("seeding request_types failed: %w", err)
+			return err
 		}
-	}
+		if applied {
+			continue
+		}
 
-	// Seed request status types
-	statusTypes := map[int]string{
-		0: "pending",
-		1: "approved",
-		2: "denied",
-	}
-	for id, desc := range statusTypes {
-		_, err := p.pool.Exec(ctx,
-			`INSERT INTO request_status_types (id, description) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING;`,
-			id, desc)
+		content, err := os.ReadFile(filepath.Join(migrationsDir, file))
 		if err != nil {
-			return fmt.Errorf("seeding request_status_types failed: %w", err)
+			return fmt.Errorf("failed to read migration file %s: %w", file, err)
+		}
+
+		log.Printf("Applying migration: %s", file)
+		if _, err := p.pool.Exec(ctx, string(content)); err != nil {
+			return fmt.Errorf("failed to apply migration %s: %w", file, err)
+		}
+
+		if _, err := p.pool.Exec(ctx, `INSERT INTO schema_migrations (filename) VALUES ($1)`, file); err != nil {
+			return fmt.Errorf("failed to record migration %s: %w", file, err)
 		}
 	}
 
-	log.Println("Database migrations and seed complete")
+	log.Println("All migrations applied successfully.")
 	return nil
+}
+
+func (p *Postgres) migrationApplied(ctx context.Context, filename string) (bool, error) {
+	var exists bool
+	err := p.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE filename = $1)`, filename).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("failed to check migration %s: %w", filename, err)
+	}
+	return exists, nil
 }
 
 // UpsertUser inserts or updates a user in the database
